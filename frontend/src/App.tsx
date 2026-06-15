@@ -6,7 +6,8 @@ import Dashboard from "./pages/Dashboard";
 import AIChat from "./pages/AIChat";
 import Profile from "./pages/Profile";
 import AdminFeedback from "./pages/AdminFeedback";
-import AdminLogin from "./pages/AdminLogin";
+import AdminThreatDashboard from "./pages/AdminThreatDashboard";
+
 
 export default function App() {
   return (
@@ -22,7 +23,15 @@ export default function App() {
       <Route path="/AIChat" element={<AIChat />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/admin/feedback" element={<AdminFeedback />} />
-      <Route path="/admin" element={<AdminLogin />} />
+      <Route path="/admin/threats" element={<AdminThreatDashboard />} />
+      <Route
+        path="/admin"
+        element={<Navigate to="/admin/dashboard" />}
+      />
+      <Route
+        path="/admin/dashboard"
+        element={<AdminThreatDashboard />}
+      />
     </Routes>
   );
 }

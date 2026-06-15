@@ -17,7 +17,13 @@ export default function Login() {
 
     try {
       await login(email, password);
-      navigate("/dashboard");
+
+      // ADMIN
+      if (email === "admin69645@cybersafe.local") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err: any) {
       setError(err.message || "Login failed");
     }
@@ -32,7 +38,10 @@ export default function Login() {
         transition={{ duration: 0.6 }}
       >
         <h1>Welcome back</h1>
-        <p className="auth-subtitle">Sign in to your CyberSafe account</p>
+
+        <p className="auth-subtitle">
+          Sign in to your CyberSafe account
+        </p>
 
         <form className="auth-form" onSubmit={handleLogin}>
           <input
@@ -59,10 +68,10 @@ export default function Login() {
         </form>
 
         <p className="auth-footer">
-          Don’t have an account? <Link to="/register">Create one</Link>
+          Don’t have an account?{" "}
+          <Link to="/register">Create one</Link>
         </p>
       </motion.div>
     </div>
   );
 }
-

@@ -164,7 +164,7 @@ export default function AIChat() {
       });
       const msgs: Message[] = await res.json();
       return msgs.length > 0 ? msgs : [WELCOME_MSG()];
-    } catch {
+    } catch (err: any) {
       return [WELCOME_MSG()];
     }
   };
@@ -259,7 +259,10 @@ export default function AIChat() {
         body: JSON.stringify({ message: msgText }),
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Unknown error");
+      }
       const data = await res.json();
       const reply = data.reply || "No response from AI.";
 
@@ -282,7 +285,7 @@ export default function AIChat() {
           body: JSON.stringify({ role: "assistant", content: reply }),
         });
       }
-    } catch {
+    } catch (err: any) {
       setChats(prev =>
         prev.map(c =>
           c.id === activeChatId
@@ -290,7 +293,7 @@ export default function AIChat() {
                 ...c,
                 messages: [
                   ...c.messages,
-                  { role: "assistant", content: "⚠️ Sorry, the AI service is temporarily unavailable." },
+                  { role: "assistant", content: `⚠️ ${err.message}` },
                 ],
               }
             : c
