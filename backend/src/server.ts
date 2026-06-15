@@ -59,7 +59,7 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 });
 
 /* START SERVER */
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT) || 4000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
