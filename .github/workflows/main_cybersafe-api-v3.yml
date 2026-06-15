@@ -25,7 +25,7 @@ jobs:
 
       - name: Zip artifact for deployment
         working-directory: ./backend
-        run: zip -r ../release.zip . -x "node_modules/*"
+        run: zip -r ../release.zip . -x ".env" -x ".git/*"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
