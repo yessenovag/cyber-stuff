@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./AIChat.css";
 import robot from "../assets/robo.png";
+import { useAuth } from "../context/AuthContext";
 
 /* ===== TYPES ===== */
 type Message = {
@@ -14,227 +15,350 @@ type Chat = {
   messages: Message[];
 };
 
-export default function AIChat() {
-  /* ===== STATE ===== */
-  const [chats, setChats] = useState<Chat[]>(() => {
+/* ===== QUICK REPLIES ===== */
+const QUICK_REPLIES = [
+  "What is phishing?",
+  "How to create a strong password?",
+  "What is malware?",
+  "How to stay safe online?",
+  "What is two-factor authentication?",
+  "How to detect a virus?",
+];
+
+/* ===== FEEDBACK MODAL ===== */
+function FeedbackModal({ onClose, token }: { onClose: () => void; token: string | null }) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const submitFeedback = async () => {
+    if (!rating) return;
     try {
-      const saved = localStorage.getItem("cybersafe-chats");
-      return saved
-        ? JSON.parse(saved)
-        : [
-            {
-              id: 1,
-              title: "New chat",
-              messages: [
-                {
-                  role: "assistant",
-                  content:
-                    "Hi, I'm CyberSafe AI! Ask me anything about cybersecurity, phishing, malware or online safety.",
-                },
-              ],
-            },
-          ];
-    } catch (error) {
-      console.error("Error loading chats from localStorage:", error);
-      return [
-        {
-          id: 1,
-          title: "New chat",
-          messages: [
-            {
-              role: "assistant",
-              content:
-                "Hi, I'm CyberSafe AI! Ask me anything about cybersecurity, phishing, malware or online safety.",
-            },
-          ],
+      await fetch("http://localhost:4000/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
-      ];
+        body: JSON.stringify({ rating, comment }),
+      });
+      setSent(true);
+      setTimeout(onClose, 1500);
+    } catch (e) {
+      console.error(e);
     }
-  });
+  };
 
-  const [activeChatId, setActiveChatId] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem("cybersafe-active-chat");
-      const parsed = saved ? Number(saved) : 1;
-      
-      // Проверяем, существует ли чат с таким id
-      const savedChats = localStorage.getItem("cybersafe-chats");
-      if (savedChats) {
-        const chatsArray: Chat[] = JSON.parse(savedChats);
-        const chatExists = chatsArray.some(chat => chat.id === parsed);
-        if (!chatExists && chatsArray.length > 0) {
-          return chatsArray[0].id;
-        }
-      }
-      
-      return parsed;
-    } catch (error) {
-      console.error("Error loading active chat from localStorage:", error);
-      return 1;
-    }
-  });
+  return (
+    <div className="feedback-overlay" onClick={onClose}>
+      <div className="feedback-modal" onClick={e => e.stopPropagation()}>
+        {sent ? (
+          <div className="feedback-success">
+            <span>✅</span>
+            <p>Thanks for your feedback!</p>
+          </div>
+        ) : (
+          <>
+            <h3>Rate CyberSafe AI</h3>
+            <p>How was your experience?</p>
+            <div className="stars">
+              {[1, 2, 3, 4, 5].map(s => (
+                <button
+                  key={s}
+                  className={`star ${s <= rating ? "active" : ""}`}
+                  onClick={() => setRating(s)}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <textarea
+              placeholder="Any comments? (optional)"
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              rows={3}
+            />
+            <div className="feedback-actions">
+              <button className="feedback-cancel" onClick={onClose}>Cancel</button>
+              <button
+                className="feedback-submit"
+                onClick={submitFeedback}
+                disabled={!rating}
+              >
+                Send Feedback
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
-  const [input, setInput] = useState<string>("");
+/* ===== MAIN COMPONENT ===== */
+export default function AIChat() {
+  const { token } = useAuth();
+
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [activeChatId, setActiveChatId] = useState<number | null>(null);
+  const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [initializing, setInitializing] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  /* ===== LOCALSTORAGE SAVE ===== */
+  /* ===== LOAD CHATS FROM DB ===== */
   useEffect(() => {
+    if (!token) {
+      setInitializing(false);
+      return;
+    }
+
+    fetch("http://localhost:4000/api/chats", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(async (dbChats: { id: number; title: string }[]) => {
+        if (dbChats.length === 0) {
+          // Create first chat
+          const res = await fetch("http://localhost:4000/api/chats", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ title: "New chat" }),
+          });
+          const newChat = await res.json();
+          setChats([{ id: newChat.id, title: "New chat", messages: [WELCOME_MSG()] }]);
+          setActiveChatId(newChat.id);
+        } else {
+          // Load messages for first chat
+          const firstChat = dbChats[0];
+          const msgs = await loadMessages(firstChat.id);
+          setChats(
+            dbChats.map((c, i) => ({
+              id: c.id,
+              title: c.title,
+              messages: i === 0 ? msgs : [],
+            }))
+          );
+          setActiveChatId(firstChat.id);
+        }
+        setInitializing(false);
+      })
+      .catch(() => setInitializing(false));
+  }, [token]);
+
+  const WELCOME_MSG = (): Message => ({
+    role: "assistant",
+    content: "Hi, I'm CyberSafe AI! Ask me anything about cybersecurity, phishing, malware or online safety.",
+  });
+
+  const loadMessages = async (chatId: number): Promise<Message[]> => {
+    if (!token) return [WELCOME_MSG()];
     try {
-      localStorage.setItem("cybersafe-chats", JSON.stringify(chats));
-    } catch (error) {
-      console.error("Error saving chats to localStorage:", error);
+      const res = await fetch(`http://localhost:4000/api/chats/${chatId}/messages`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const msgs: Message[] = await res.json();
+      return msgs.length > 0 ? msgs : [WELCOME_MSG()];
+    } catch {
+      return [WELCOME_MSG()];
     }
-  }, [chats]);
+  };
 
+  /* ===== SWITCH CHAT ===== */
+  const switchChat = async (chatId: number) => {
+    const chat = chats.find(c => c.id === chatId);
+    if (!chat) return;
+
+    // Load messages if not loaded yet
+    if (chat.messages.length === 0) {
+      const msgs = await loadMessages(chatId);
+      setChats(prev =>
+        prev.map(c => (c.id === chatId ? { ...c, messages: msgs } : c))
+      );
+    }
+    setActiveChatId(chatId);
+  };
+
+  /* ===== AUTO SCROLL ===== */
   useEffect(() => {
-    try {
-      localStorage.setItem("cybersafe-active-chat", String(activeChatId));
-    } catch (error) {
-      console.error("Error saving active chat to localStorage:", error);
-    }
-  }, [activeChatId]);
-
-  /* ===== ACTIVE CHAT ===== */
-  const activeChat = chats.find(chat => chat.id === activeChatId) || chats[0];
-
-  useEffect(() => {
-    // Если активный чат не найден, выбираем первый
-    if (!chats.find(chat => chat.id === activeChatId) && chats.length > 0) {
-      setActiveChatId(chats[0].id);
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chats, activeChatId]);
 
-  const filteredChats = chats.filter(chat =>
-    chat.title.toLowerCase().includes(search.toLowerCase())
+  /* ===== ACTIVE CHAT ===== */
+  const activeChat = chats.find(c => c.id === activeChatId);
+  const filteredChats = chats.filter(c =>
+    c.title.toLowerCase().includes(search.toLowerCase())
   );
 
   /* ===== SEND MESSAGE ===== */
-  const autoRenameChat = (message: string) => {
-    if (!message.trim()) return;
-    
-    const title = message
-      .split(" ")
-      .slice(0, 5)
-      .join(" ")
-      .substring(0, 50); // Ограничиваем длину
-    
-    setChats(prev =>
-      prev.map(chat =>
-        chat.id === activeChatId && 
-        (chat.title === "New chat" || chat.title.startsWith("New chat"))
-          ? { ...chat, title: title || "New chat" }
-          : chat
-      )
-    );
-  };
+  const sendMessage = async (text?: string) => {
+    const msgText = (text || input).trim();
+    if (!msgText || !activeChatId) return;
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+    const userMessage: Message = { role: "user", content: msgText };
 
-    const userMessage: Message = {
-      role: "user",
-      content: input.trim(),
-    };
+    // Rename chat if default
+    const isDefault =
+      activeChat?.title === "New chat" ||
+      activeChat?.messages.filter(m => m.role === "user").length === 0;
 
+    const newTitle = isDefault
+      ? msgText.split(" ").slice(0, 5).join(" ").substring(0, 50)
+      : undefined;
 
     setChats(prev =>
-      prev.map(chat =>
-        chat.id === activeChatId
-          ? { ...chat, messages: [...chat.messages, userMessage] }
-          : chat
+      prev.map(c =>
+        c.id === activeChatId
+          ? {
+              ...c,
+              title: newTitle || c.title,
+              messages: [...c.messages, userMessage],
+            }
+          : c
       )
     );
-    
-    autoRenameChat(input);
-    const userInput = input;
     setInput("");
+    setLoading(true);
+
+    // Save user message to DB
+    if (token) {
+      fetch(`http://localhost:4000/api/chats/${activeChatId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ role: "user", content: msgText }),
+      });
+
+      // Rename chat in DB
+      if (newTitle) {
+        fetch(`http://localhost:4000/api/chats/${activeChatId}/title`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ title: newTitle }),
+        });
+      }
+    }
 
     try {
       const res = await fetch("http://localhost:4000/api/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userInput }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({ message: msgText }),
       });
 
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
+      if (!res.ok) throw new Error();
       const data = await res.json();
+      const reply = data.reply || "No response from AI.";
 
       setChats(prev =>
-        prev.map(chat =>
-          chat.id === activeChatId
-            ? {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  { role: "assistant", content: data.reply || "No response from AI." },
-                ],
-              }
-            : chat
+        prev.map(c =>
+          c.id === activeChatId
+            ? { ...c, messages: [...c.messages, { role: "assistant", content: reply }] }
+            : c
         )
       );
-    } catch (error) {
-      console.error("Error sending message:", error);
-      
+
+      // Save assistant reply to DB
+      if (token) {
+        fetch(`http://localhost:4000/api/chats/${activeChatId}/messages`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ role: "assistant", content: reply }),
+        });
+      }
+    } catch {
       setChats(prev =>
-        prev.map(chat =>
-          chat.id === activeChatId
+        prev.map(c =>
+          c.id === activeChatId
             ? {
-                ...chat,
+                ...c,
                 messages: [
-                  ...chat.messages,
-                  {
-                    role: "assistant",
-                    content: "⚠️ Sorry, the AI service is temporarily unavailable. Please try again later.",
-                  },
+                  ...c.messages,
+                  { role: "assistant", content: "⚠️ Sorry, the AI service is temporarily unavailable." },
                 ],
               }
-            : chat
+            : c
         )
       );
+    } finally {
+      setLoading(false);
     }
   };
 
-  const createNewChat = () => {
-    const newChatId = Date.now();
-
-    const newChat: Chat = {
-      id: newChatId,
-      title: "New chat",
-      messages: [
-        {
-          role: "assistant",
-          content: "Hi, I'm CyberSafe AI! Ask me anything about cybersecurity.",
-        },
-      ],
-    };
-
-    setChats(prev => [newChat, ...prev]);
-    setActiveChatId(newChatId);
-    setSearch(""); 
+  /* ===== CREATE CHAT ===== */
+  const createNewChat = async () => {
+    if (!token) return;
+    const res = await fetch("http://localhost:4000/api/chats", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ title: "New chat" }),
+    });
+    const newChat = await res.json();
+    setChats(prev => [{ id: newChat.id, title: "New chat", messages: [WELCOME_MSG()] }, ...prev]);
+    setActiveChatId(newChat.id);
+    setSearch("");
   };
 
-  const deleteChat = (chatId: number, e: React.MouseEvent) => {
-    e.stopPropagation(); 
-    
+  /* ===== DELETE CHAT ===== */
+  const deleteChat = async (chatId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (chats.length <= 1) {
-      alert("Cannot delete the last chat. Please create a new one first.");
+      alert("Cannot delete the last chat.");
       return;
     }
-    
-    const updatedChats = chats.filter(chat => chat.id !== chatId);
-    setChats(updatedChats);
-    
-    
-    if (chatId === activeChatId && updatedChats.length > 0) {
-      setActiveChatId(updatedChats[0].id);
+    if (token) {
+      await fetch(`http://localhost:4000/api/chats/${chatId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
     }
+    const updated = chats.filter(c => c.id !== chatId);
+    setChats(updated);
+    if (chatId === activeChatId) setActiveChatId(updated[0]?.id ?? null);
   };
 
+  /* ===== RENDER ===== */
+  if (initializing) {
+    return (
+      <div className="ai-layout">
+        <div className="ai-loading">
+          <div className="ai-spinner" />
+          <p>Loading your chats...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const showQuickReplies =
+    activeChat &&
+    activeChat.messages.filter(m => m.role === "user").length === 0;
 
   return (
     <div className="ai-layout">
-      {}
+      {showFeedback && (
+        <FeedbackModal onClose={() => setShowFeedback(false)} token={token} />
+      )}
+
+      {/* SIDEBAR */}
       <aside className="ai-sidebar">
         <div className="sidebar-header">
           <h3>🛡 CyberSafe AI</h3>
@@ -244,7 +368,7 @@ export default function AIChat() {
         <button className="new-chat-btn" onClick={createNewChat}>
           + New chat
         </button>
-        
+
         <input
           className="chat-search"
           placeholder="Search chats..."
@@ -260,17 +384,17 @@ export default function AIChat() {
               <div
                 key={chat.id}
                 className={`chat-item ${chat.id === activeChatId ? "active" : ""}`}
-                onClick={() => setActiveChatId(chat.id)}
+                onClick={() => switchChat(chat.id)}
               >
                 <div className="chat-item-content">
-                  <span className="chat-icon"></span>
+                  <span className="chat-icon">💬</span>
                   <span className="chat-title" title={chat.title}>
                     {chat.title}
                   </span>
                 </div>
-                <button 
+                <button
                   className="delete-chat-btn"
-                  onClick={(e) => deleteChat(chat.id, e)}
+                  onClick={e => deleteChat(chat.id, e)}
                   title="Delete chat"
                 >
                   ×
@@ -280,27 +404,54 @@ export default function AIChat() {
           )}
         </div>
 
-        {}
+        {/* FEEDBACK BUTTON */}
+        <button className="feedback-btn" onClick={() => setShowFeedback(true)}>
+          ⭐ Rate this app
+        </button>
+
         <div className="robot-container">
           <img src={robot} alt="CyberSafe AI Robot" />
           <p>AI Security Bot</p>
         </div>
       </aside>
 
-      {}
+      {/* CHAT MAIN */}
       <main className="chat-container">
         <div className="chat-messages">
-          {activeChat?.messages?.length > 0 ? (
-            activeChat.messages.map((m, i) => (
-              <div key={i} className={`message-row ${m.role}`}>
-                <div className="message-bubble">{m.content}</div>
+          {activeChat?.messages.map((m, i) => (
+            <div key={i} className={`message-row ${m.role}`}>
+              <div className="message-bubble">{m.content}</div>
+            </div>
+          ))}
+
+          {/* QUICK REPLIES */}
+          {showQuickReplies && (
+            <div className="quick-replies">
+              <p className="quick-replies-label">Quick questions:</p>
+              <div className="quick-replies-grid">
+                {QUICK_REPLIES.map(q => (
+                  <button
+                    key={q}
+                    className="quick-reply-btn"
+                    onClick={() => sendMessage(q)}
+                  >
+                    {q}
+                  </button>
+                ))}
               </div>
-            ))
-          ) : (
-            <div className="empty-chat">
-              <p>No messages yet. Start a conversation!</p>
             </div>
           )}
+
+          {/* LOADING INDICATOR */}
+          {loading && (
+            <div className="message-row assistant">
+              <div className="message-bubble typing">
+                <span /><span /><span />
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
         </div>
 
         <div className="chat-input">
@@ -308,13 +459,10 @@ export default function AIChat() {
             value={input}
             onChange={e => setInput(e.target.value)}
             placeholder="Ask about cybersecurity..."
-            onKeyDown={e => e.key === "Enter" && sendMessage()}
-            disabled={!activeChat} 
+            onKeyDown={e => e.key === "Enter" && !loading && sendMessage()}
+            disabled={loading}
           />
-          <button 
-            onClick={sendMessage}
-            disabled={!input.trim() || !activeChat}
-          >
+          <button onClick={() => sendMessage()} disabled={!input.trim() || loading}>
             ➤
           </button>
         </div>

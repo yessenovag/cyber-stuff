@@ -33,7 +33,11 @@ export class AuthService {
       .run(email, hashedPassword) as any;
 
     // Generate token
-    const token = generateToken(result.lastInsertRowid as number, email);
+    const token = generateToken(
+      result.lastInsertRowid as number,
+      email,
+      "user"
+    );
 
     return {
       token,
@@ -49,7 +53,7 @@ export class AuthService {
 
     // Find user
     const user = db
-      .prepare("SELECT id, email, password FROM users WHERE email = ?")
+      .prepare("SELECT id, email, password, role FROM users WHERE email = ?")
       .get(email) as User | undefined;
 
     if (!user) {
@@ -64,7 +68,11 @@ export class AuthService {
     }
 
     // Generate token
-    const token = generateToken(user.id, user.email);
+    const token = generateToken(
+      user.id,
+      user.email,
+      (user as any).role
+    );
 
     return {
       token,

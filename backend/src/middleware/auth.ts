@@ -7,6 +7,7 @@ export interface AuthRequest extends Request {
   user?: {
     userId: number;
     email: string;
+    role: string;
   };
 }
 
@@ -16,7 +17,12 @@ export function authMiddleware(
   next: NextFunction
 ) {
   const auth = req.headers.authorization;
-  if (!auth) return res.status(401).json({ error: "No token" });
+
+  if (!auth) {
+    return res.status(401).json({
+      error: "No token",
+    });
+  }
 
   const token = auth.split(" ")[1];
 
@@ -26,12 +32,13 @@ export function authMiddleware(
     req.user = {
       userId: payload.userId,
       email: payload.email,
+      role: payload.role, // <-- ВАЖНО
     };
 
     next();
   } catch {
-    return res.status(401).json({ error: "Invalid token" });
+    return res.status(401).json({
+      error: "Invalid token",
+    });
   }
 }
-
-
