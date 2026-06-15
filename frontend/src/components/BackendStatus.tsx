@@ -4,7 +4,7 @@ export default function BackendStatus() {
   const [status, setStatus] = useState("Checking backend...");
 
   useEffect(() => {
-    fetch("http://localhost:4000/")
+    fetch("http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/")
       .then((res) => res.text())
       .then((text) => setStatus(text))
       .catch(() => setStatus("Backend not reachable"));

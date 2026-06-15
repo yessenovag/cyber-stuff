@@ -34,13 +34,13 @@ export default function AdminThreatDashboard() {
     }
 
     Promise.all([
-      fetch("http://localhost:4000/api/threats", {
+      fetch("http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/threats", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       }).then((res) => res.json()),
 
-      fetch("http://localhost:4000/api/threats/stats", {
+      fetch("http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/threats/stats", {
         headers: {
           Authorization: `Bearer ${token}`,
         },

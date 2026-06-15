@@ -1,4 +1,4 @@
-﻿const BASE_URL = "http://localhost:4000/api";
+﻿const BASE_URL = "http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api";
 
 export const apiPost = async (url: string, body: any, token?: string) => {
   const res = await fetch(`${BASE_URL}${url}`, {

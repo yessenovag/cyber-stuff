@@ -30,7 +30,7 @@ app.get("/check-admin", (_req, res) => {
 /* MIDDLEWARE */
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173", "https://cybersafe-frontend-v1-etg0fdcrf7abgng3.spaincentral-01.azurewebsites.net"],
     credentials: true,
   })
 );

@@ -34,7 +34,7 @@ function FeedbackModal({ onClose, token }: { onClose: () => void; token: string 
   const submitFeedback = async () => {
     if (!rating) return;
     try {
-      await fetch("http://localhost:4000/api/feedback", {
+      await fetch("http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/feedback", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -115,14 +115,14 @@ export default function AIChat() {
       return;
     }
 
-    fetch("http://localhost:4000/api/chats", {
+    fetch("http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/chats", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
       .then(async (dbChats: { id: number; title: string }[]) => {
         if (dbChats.length === 0) {
           // Create first chat
-          const res = await fetch("http://localhost:4000/api/chats", {
+          const res = await fetch("http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/chats", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -159,7 +159,7 @@ export default function AIChat() {
   const loadMessages = async (chatId: number): Promise<Message[]> => {
     if (!token) return [WELCOME_MSG()];
     try {
-      const res = await fetch(`http://localhost:4000/api/chats/${chatId}/messages`, {
+      const res = await fetch(`http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/chats/${chatId}/messages`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const msgs: Message[] = await res.json();
@@ -227,7 +227,7 @@ export default function AIChat() {
 
     // Save user message to DB
     if (token) {
-      fetch(`http://localhost:4000/api/chats/${activeChatId}/messages`, {
+      fetch(`http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/chats/${activeChatId}/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -238,7 +238,7 @@ export default function AIChat() {
 
       // Rename chat in DB
       if (newTitle) {
-        fetch(`http://localhost:4000/api/chats/${activeChatId}/title`, {
+        fetch(`http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/chats/${activeChatId}/title`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -250,7 +250,7 @@ export default function AIChat() {
     }
 
     try {
-      const res = await fetch("http://localhost:4000/api/ai/chat", {
+      const res = await fetch("http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/ai/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -276,7 +276,7 @@ export default function AIChat() {
 
       // Save assistant reply to DB
       if (token) {
-        fetch(`http://localhost:4000/api/chats/${activeChatId}/messages`, {
+        fetch(`http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/chats/${activeChatId}/messages`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -307,7 +307,7 @@ export default function AIChat() {
   /* ===== CREATE CHAT ===== */
   const createNewChat = async () => {
     if (!token) return;
-    const res = await fetch("http://localhost:4000/api/chats", {
+    const res = await fetch("http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/chats", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -329,7 +329,7 @@ export default function AIChat() {
       return;
     }
     if (token) {
-      await fetch(`http://localhost:4000/api/chats/${chatId}`, {
+      await fetch(`http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/chats/${chatId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
