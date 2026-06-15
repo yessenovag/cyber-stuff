@@ -20,7 +20,7 @@ export default function AdminFeedback() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/feedback/all", {
+    fetch("https://cybersafe-api-v3-dzf7cdd7czewged8.spaincentral-01.azurewebsites.net/api/feedback/all", {
       headers: {
         ...(token && {
           Authorization: `Bearer ${token}`,
