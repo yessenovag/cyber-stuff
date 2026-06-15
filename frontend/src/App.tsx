@@ -5,7 +5,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import AIChat from "./pages/AIChat";
 import Profile from "./pages/Profile";
-import AdminFeedback from "./pages/AdminFeedback";
+import Adminfeedback from "./pages/AdminFeedback";
 import AdminThreatDashboard from "./pages/AdminThreatDashboard";
 
 
